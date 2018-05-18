@@ -1,0 +1,301 @@
+<html>
+<head>
+<title>voteMe</title>
+<style>
+	.hide  {
+		display: none;
+	}
+	
+	.title {
+            text-align: center;
+            font-size: 70px;
+            text-shadow: 3px 5px grey, 1px 1px #333;						
+			margin: 20px;			
+        }
+	
+	.logo {
+		text-align: center;
+		width: 60%;
+		margin: auto;		
+	}
+		
+	.wrapper {
+		font-size: 20px;
+		padding-top: 40px;
+	}
+
+	.container {
+		float: center;
+		text-align: center;
+		width: 80%;
+		margin: 0 auto;
+		//max-width: 1000px;
+	}
+/*	
+	.leftdiv {
+		float: left;
+		width: 18%;
+        height: 50px;
+        margin-left: 6px;
+		text-align: right;
+		vertical-align: center;
+	}
+*/	
+	#what, #who {
+            width: 80%;
+            height: 50px;
+            box-shadow: 3px 5px grey, 1px 1px #333;
+    }
+
+	#electionbutton, #votebutton {
+            float: right;
+			width: 18%;
+            height: 50px;
+            margin-left: 6px;
+            box-shadow: 3px 5px grey, 1px 1px #333;
+			font-size: 20px;
+    }
+	
+	#results {
+		width: 60%;
+		margin: 0 auto;
+		margin-top: 40px;
+		font-size: 20px;
+		text-align: left;
+		border: solid;
+		padding: 10px;
+	}
+	
+	input[type='text'] { 
+		font-size: 24px; 
+	}
+	
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="title">Voting on the blockchain</div>
+<div class="logo">
+	<img src="img/logo.png">
+</div>
+
+<div class="wrapper">
+<input id="what" type="text" placeholder="Election">
+<button id="electionbutton" onclick="electionResults()" type="button"> Election results </button>
+</div>
+
+
+<div class="wrapper">
+<input id="who" type="text" placeholder="Candidate">
+<button id="votebutton" onclick="vote()" type="button"> Vote </button>
+</div>
+
+<!--
+<div class="instructions">
+You vote for candidates in elections.
+</div>
+-->
+<!--
+<button onclick="howManyVotes()" type="button"> 
+Look up votes
+</button>
+-->
+
+
+<div class="hide" id="results">
+	<div id="removable">
+		<!--Election results will go here-->
+	</div>
+</div>
+
+
+
+</div>
+
+
+<script src="jquery-3.3.1.js"></script>
+<script src="nebPay.js"></script>
+<script src=nebulas.js></script>
+
+<script >
+    var NebPay = require("nebpay");
+    var nebPay = new NebPay();    
+    var serialNumber; //transaction serial number
+    var intervalQuery; //periodically query tx results
+    
+	var options = {
+			callback: NebPay.config.testnetUrl  //to tell app where to send tx result, and tell queryPayInfo where to query tx result. We are using the testnet
+		}        	
+
+	var dappAddress = "n1nhq6g7Z3vK61MQ9fDaoLfxhxqaDtvSbES";
+		
+    //initiate the transaction with a button click, here is an example of calling a smart contract
+    function vote() {        
+        var to = dappAddress;   //the smart contract address of your Dapp
+        var value = "0";
+        var callFunction = "vote" //the function name to be called
+		var who = document.getElementById("who").value;
+		var what = document.getElementById("what").value;
+        var callArgs =  "[\"" + what + "\",\"" + who + "\"]";
+		
+		""  //the parameter, it's format JSON string of parameter arrays, such as '["arg"]','["arg1","arg2]'
+		
+        //Send transaction (here is smart contract call)
+        serialNumber = nebPay.call(to, value, callFunction, callArgs, options);
+        
+        //Set a periodically query
+        intervalQuery = setInterval(function() {
+            funcIntervalQuery();
+        }, 5000);
+    }
+	
+	
+	function howManyVotes() {
+		var who = document.getElementById("who").value;
+		var what = document.getElementById("what").value;
+		var votes = lookUp(what, who);
+	}	
+	
+
+    async function lookUp(election, candidate) {        
+
+		var nebulas = require("nebulas"),
+			Account = nebulas.Account,
+			neb = new nebulas.Neb();
+		neb.setRequest(new nebulas.HttpRequest("https://testnet.nebulas.io"));
+
+		var from = Account.NewAccount().getAddressString();
+		var to = dappAddress;   //the smart contract address of your Dapp
+        var value = "0";
+		var nonce = "0"
+        var gas_price = "1000000"
+        var gas_limit = "2000000"
+        var callFunction = "getVotes" //the function name to be called
+		var who = candidate;
+		var what = election;
+        var callArgs =  "[\"" + what + "\",\"" + who + "\"]";
+
+        var contract = {
+            "function": callFunction,
+            "args": callArgs
+        }
+
+		let resp = await neb.api.call(from,to,value,nonce,gas_price,gas_limit,contract);
+		return resp.result;
+    }
+	
+
+	async function electionResults() {        
+	
+		var nebulas = require("nebulas"),
+			Account = nebulas.Account,
+			neb = new nebulas.Neb();
+		neb.setRequest(new nebulas.HttpRequest("https://testnet.nebulas.io"));
+
+		var from = Account.NewAccount().getAddressString();
+		var to = dappAddress;   //the smart contract address of your Dapp
+        var value = "0";
+		var nonce = "0"
+        var gas_price = "1000000"
+        var gas_limit = "2000000"
+        var callFunction = "getCandidateCount" //the function name to be called
+		var who = document.getElementById("who").value.toString();
+		var what = document.getElementById("what").value.toString();
+        var callArgs =  "[\"" + what + "\"]";
+
+        var contract = {
+            "function": callFunction,
+            "args": callArgs
+        }
+/*
+		var e = document.getElementById("results");
+		e.style.display = "block";		
+		e.innerHTML = "The results of election " + what + ": <br>";
+*/		
+//		document.getElementById("results").style.display = "block";
+		let resp = await neb.api.call(from,to,value,nonce,gas_price,gas_limit,contract);
+		var n = resp.result;
+
+		$("#removable").remove();
+		$("#results").append("<div id=\"removable\"></div>");
+		
+		$("#results").show();
+		
+		if (n == 0) {
+			$("#removable").append($("<h3>This election does not exist.</h3>"));
+			return false;
+		}
+		
+		$("#removable").append($("<h3>The results of election \"" + what + "\": </h3>"));
+		
+		var candidates = [];
+		var voteCount = [];
+		
+		for (var i = 1; i <= n; ++i)
+		{
+			var contract2 = { "function": "getCandidate", "args": "[\"" + what + "\",\"" + i.toString() + "\"]" };
+			resp = await neb.api.call(from,to,value,nonce,gas_price,gas_limit,contract2);
+			name = resp.result;			
+//			console.log(name);
+
+			var contract3 = { "function": "getVotes", "args": "[\"" + what + "\"," + name + "]" };
+			resp = await neb.api.call(from,to,value,nonce,gas_price,gas_limit,contract3);
+			var votes = resp.result;
+			
+			name = name.replace(/^"(.*)"$/, '$1');
+			candidates.push(name);
+			voteCount.push(votes);
+			
+			/*
+			let votes = await lookUp(what, name);
+			console.log(name + " has " + votes + " votes");
+			*/
+		}
+		
+		// sort the votes
+		for (var i = 0; i < n; ++i)
+			for (var j = i+1; j < n; ++j)
+				if (voteCount[i] < voteCount[j])
+				{
+					var tmp = voteCount[i]; voteCount[i] = voteCount[j]; voteCount[j] = tmp;
+					tmp = candidates[i]; candidates[i] = candidates[j]; candidates[j] = tmp;
+				}
+			
+		$("#removable").append($("<ol id=\"resultslist\"> </ol>"));
+		
+		for (var i = 0; i < n; ++i)
+		{
+			var h = document.createElement("li");
+			var t1 = document.createTextNode(candidates[i]);			
+			var t2 = document.createTextNode(" ("+voteCount[i]+" votes)");
+			h.appendChild(t1)
+			h.appendChild(t2);
+			document.getElementById("resultslist").appendChild(h);
+		}
+    }
+	
+
+    //Query the result of the transaction. queryPayInfo returns a Promise object.
+    function funcIntervalQuery() {   
+        nebPay.queryPayInfo(serialNumber, options)   //search transaction result from server (result upload to server by app)
+            .then(function (resp) {
+                console.log("tx result: " + resp)   //resp is a JSON string
+                var respObject = JSON.parse(resp)
+                if(respObject.code === 0){
+                    //The transaction is successful 
+                    
+                    clearInterval(intervalQuery)    //stop the periodically query 
+                }
+            })
+            .catch(function (err) {
+                console.log(err);
+            });
+    }
+    
+</script>
+
+</body>
+</html>
